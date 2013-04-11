@@ -9,8 +9,10 @@ require "haml"
 require "rest-client"
 
 # PagSeguro classes
+require "credit_card"
 require "item"
 require "payment"
+require "direct_payment"
 require "payment_method"
 require "sender"
 require "shipping"

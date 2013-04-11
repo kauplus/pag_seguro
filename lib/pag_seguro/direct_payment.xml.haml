@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+%payment
+  - if payment.mode.present?
+    %mode= payment.mode
+  - if payment.method.present?
+    %method= payment.method
+
+  - if sender.present?
+    %sender
+      - if sender.name.present?
+        %name= sender.name
+      - if sender.email.present?
+        %email= sender.email
+      %phone
+        - if sender.phone_ddd.present?
+          %areaCode= sender.phone_ddd
+        - if sender.phone_number.present?
+          %number= sender.phone_number
+      %documents
+        - if sender.cpf.present?
+          %document
+            %type CPF
+            %value= sender.cpf
+      - if sender.hash.present?
+        %hash= sender.hash
+    - if sender.notification_url.present?
+      %notificationURL= sender.notification_url
+
+  %currency BRL
+
+  %items
+    - items.each do |item|
+      %item
+        %id= item.id
+        %description&= item.description
+        %quantity= item.quantity
+        %amount= item.amount
+        - if item.shipping_cost.present?
+          %shippingCost= item.shipping_cost
+        - if item.weight.present?
+          %weight= item.weight
+
+  - if payment.extra_amount.present?
+    %extraAmount= payment.extra_amount
+  - if payment.id.present?
+    %reference= payment.id
+
+  - if shipping.present?
+    %shipping
+      %address
+        - if shipping.street.present?
+          %street= shipping.street
+        - if shipping.number.present?
+          %number= shipping.number
+        - if shipping.complement.present?
+          %complement= shipping.complement
+        - if shipping.district.present?
+          %district= shipping.district
+        - if shipping.city.present?
+          %city= shipping.city
+        - if shipping.state.present?
+          %state= shipping.state
+        %country BRA
+        - if shipping.postal_code.present?
+          %postalCode= shipping.postal_code
+      - if !shipping.type.zero?
+        %type= shipping.type
+      - else
+        %type 3
+      - if shipping.cost.present?
+        %cost= shipping.cost
+  - if credit_card.present?
+    %creditCard
+      - if credit_card.token.present?
+        %token= credit_card.token
+      - if credit_card.quantity.present? && credit_card.value.present?
+        %installment
+          %quantity= credit_card.quantity
+          %value= credit_card.value
+      %holder
+        - if credit_card.name.present?
+          %name= credit_card.name
+        %documents
+          %document
+            - if credit_card.cpf.present?
+              %type CPF
+              %value= credit_card.cpf
+        - if credit_card.birth_date.present?
+          %birthDate= credit_card.birth_date
+        - if credit_card.area_code.present? && credit_card.phone_number.present?
+          %phone
+            %areaCode= credit_card.area_code
+            %number= credit_card.phone_number
+      %billingAddress
+        - if billing.street.present?
+          %street= billing.street
+        - if billing.number.present?
+          %number= billing.number
+        - if billing.complement.present?
+          %complement= billing.complement
+        - if billing.district.present?
+          %district= billing.district
+        - if billing.city.present?
+          %city= billing.city
+        - if billing.state.present?
+          %state= billing.state
+        %country BRA
+        - if billing.postal_code.present?
+          %postalCode= billing.postal_code
+
