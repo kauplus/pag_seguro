@@ -21,9 +21,6 @@ module PagSeguro
       @extra_amount = options[:extra_amount]
       @mode         = options[:mode] || 'default'
       @method       = options[:method]
-      # @redirect_url = options[:redirect_url]
-      # @max_uses     = options[:max_uses]
-      # @max_age      = options[:max_age]
     end
 
     def direct_payment_url
@@ -65,6 +62,7 @@ module PagSeguro
       @response = nil
     end
 
+
     protected
 
     def send_checkout
@@ -81,6 +79,7 @@ module PagSeguro
 
       response
     end
+
 
       def parse_checkout_response
         response = send_checkout
