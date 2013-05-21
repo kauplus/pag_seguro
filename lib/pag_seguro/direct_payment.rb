@@ -66,18 +66,7 @@ module PagSeguro
     protected
 
     def send_checkout
-      request_xml = checkout_xml
-      f = File.new("in", "w")
-      f.write(request_xml)
-      f.close
-
-      response = RestClient.post(direct_payment_url_with_params, request_xml, content_type: "application/xml") { |resp, request, result| resp }
-
-      f = File.new("out", "w")
-      f.write(response.body)
-      f.close
-
-      response
+      RestClient.post(direct_payment_url_with_params, checkout_xml, content_type: "application/xml") { |resp, request, result| resp }
     end
 
 
