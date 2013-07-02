@@ -1,12 +1,18 @@
 $: << File.expand_path(File.dirname(__FILE__) + "/../lib/pag_seguro")
 
-require 'date'
+require "date"
+require "bigdecimal"
 
 # Third party gems
 require "active_model"
 require "nokogiri"
 require "haml"
 require "rest-client"
+require "active_support"
+require "active_support/time"
+
+require "pagseguro_decimal_validator"
+require "convert_field_to_digit"
 
 # PagSeguro classes
 require "credit_card"
@@ -16,6 +22,8 @@ require "direct_payment"
 require "payment_method"
 require "sender"
 require "shipping"
+require "day_of_year"
+require "pre_approval"
 require "transaction"
 require "notification"
 require "query"

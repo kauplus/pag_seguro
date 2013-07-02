@@ -8,7 +8,7 @@
     %redirectURL= payment.redirect_url
   - if payment.max_uses.present?
     %maxUses= payment.max_uses
-  - if payment. max_age.present?
+  - if payment.max_age.present?
     %maxAge= payment.max_age
 
   %currency BRL
@@ -39,10 +39,7 @@
 
   - if shipping.present?
     %shipping
-      - if !shipping.type.zero?
-        %type= shipping.type
-      - else
-        %type 3
+      %type= shipping.type
       - if shipping.cost.present?
         %cost= shipping.cost
       %address
@@ -61,3 +58,25 @@
           %number= shipping.number
         - if shipping.complement.present?
           %complement= shipping.complement
+
+  - if pre_approval.present?
+    %preApproval
+      %name= pre_approval.name
+      %finalDate= pre_approval.final_date.iso8601
+      %maxAmountPerPeriod= pre_approval.max_amount_per_period
+      %maxTotalAmount= pre_approval.max_total_amount
+      %period= pre_approval.period
+      - if pre_approval.weekly?
+        %dayOfWeek= pre_approval.day_of_week
+      - if pre_approval.monthly?
+        %dayOfMonth= pre_approval.day_of_month
+      - if pre_approval.yearly?
+        %dayOfYear= pre_approval.day_of_year
+      - if pre_approval.details.present?
+        %details= pre_approval.details
+      - if pre_approval.amount_per_payment.present?
+        %amountPerPayment= pre_approval.amount_per_payment
+      - if pre_approval.initial_date.present?
+        %initialDate= pre_approval.initial_date.iso8601
+      - if pre_approval.review_URL.present?
+        %reviewURL= pre_approval.review_URL

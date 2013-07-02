@@ -73,7 +73,9 @@ Com exceção do atributo response (que é utilizado para armazenar a resposta e
 
 ### API de Notificação
 
-As notificações de alteração no status da compra no PagSeguro serão enviadas para a URL que tiver configurado na [Notificação de transações](https://pagseguro.uol.com.br/v2/guia-de-integracao/consulta-de-transacoes-por-codigo.html). Obs.: Até o momento o PagSeguro não permite configurar uma url dinâmica para envio das notificação ( e apenas permite uma url por conta ), então provavelemente será necessário que crie uma conta diferente no PagSeguro para cada sistema que desenvolver.
+As notificações de alteração no status da compra no PagSeguro serão enviadas para a URL que tiver configurado na [Notificação de transações](https://pagseguro.uol.com.br/v2/guia-de-integracao/consulta-de-transacoes-por-codigo.html). Se quiser configurar uma url dinâmica para envio das notificação é necessário ativar a página de redirecionamento dinâmico em [Integrações > Página de redirecionamento](https://pagseguro.uol.com.br/integracao/pagina-de-redirecionamento.jhtml), e passar o argumento `redirect_url` para o objeto PagSeguro::Payment:
+
+    PagSeguro::Payment.new(email, token, id: invoice.id, redirect_url: "http://lojamodelo.com.br/checkout")
 
 O código da notificação é enviado pelo PagSeguro através do parâmentro `notificationCode` em uma requisição do tipo POST. Segue um exemplo de uso da notificação em uma aplicação rails (este exemplo supõe a existência de um `resources :notifications` em suas rotas, e um modelo `Invoice` responsável pelos pagamentos):
 
@@ -108,21 +110,84 @@ Para este exemplo, o url configurada na [Notificação de transações](https://
 
 ### Consulta de Transações
 
-Para realizar a consulta de uma transação é preciso obter o código da transação. Este código é enviado nas Notificações de Transações do PagSeguro (de forma assíncrona), através do método `notification.transaction_id` ou de forma síncrona assim que o usuário retorna à loja após ter concluído a compra.
+Há duas maneiras de se realizar a consulta das transações, a primeira delas buscando o código de uma transação, e outra buscando por todas as transações em um determinado período
+
+#### Consulta de Transações por Período
+
+Você pode consultar as transações por uma data através do método `PagSeguro::Query::find`, informando seu email, token, e algumas opções adicionais:
+
+    transactions = PagSeguro::Query.find(email, token, initial_date: 30.days.ago, final_date: Time.now)
+
+    transactions.each do |transaction|
+      puts "id: #{transaction.id}, transaction_id: #{transaction.transaction_id}"
+      ...
+    end
+
+Além das opções acima, você pode enviar também as opções `:page` (que pelo padrão é a primeira), `:max_page_results` (que por padrão é 50) e `abandoned`, que por padrão é falso mas caso seja passado como verdadeiro irá buscar as transações abandonadas (onde o processo de cadastro/compra não foi concluído). Obviamente a data final precisa ser maior que a inicial, não podem haver mais de 30 dias de diferença entre as duas, e a data inicial precisa estar dentro dos últimos 6 meses.
+
+Obs.: Se for consultar as transações abandonadas, não utilize Time.now como `final_date`. Por algum motivo o PagSeguro não permite consultar as transações abandonadas até o momento atual, resultando em um erro 400 (bad request). Utilize 15.minutes.ago ou Date.today.
+
+#### Consulta de Transação por código
+
+O código das transações são enviadas nas Notificações de Transações do PagSeguro (de forma assíncrona), e podem ser obtidas através do método `notification.transaction_id`, e também podem ser obtidas de forma síncrona assim que o usuário retorna à loja após ter concluído a compra. Este código também pode ser encontrado através da busca de transações por período.
 
 Para buscar informações da transação de forma síncrona, é necessário que acesse sua conta no PagSeguro, e clique em [Integrações > Página de redirecionamento](https://pagseguro.uol.com.br/integracao/pagina-de-redirecionamento.jhtml) e ative o redirecionamento com o código da transação, definindo o nome do parâmetro que será enviado para sua aplicação (e.g.: http://lojamodelo.com.br/checkout?transaction_id=E884542-81B3-4419-9A75-BCC6FB495EF1 ). O redirecionamento para esta página é executado através de uma requisição GET.
 
-Caso queira utilizar uma URL dinâmica de retorno, é necessário ativar a página de redirecionamento dinâmico em [Integrações > Página de redirecionamento](https://pagseguro.uol.com.br/integracao/pagina-de-redirecionamento.jhtml), e passar o argumento `redirect_url` para o objeto PagSeguro::Payment:
-
-    PagSeguro::Payment.new(email, token, id: invoice.id, redirect_url: "http://lojamodelo.com.br/checkout")
-
-Você pode consultar as informações da transação através do `PagSeguro::Query`, que possui os mesmos attributos e métodos que `PagSeguro::Notification` para consulta da transação:
+Você pode consultar as informações da transação instanciando a classe `PagSeguro::Query`, que possui os mesmos attributos e métodos que uma notificação:
 
     query = PagSeguro::Query.new(email, token, "E884542-81B3-4419-9A75-BCC6FB495EF1")
 
     if query.approved?
       # ...
     end
+
+### Pagamento Recorrente
+
+**Primeiro de tudo vale ressaltar que a API de pagamento recorrente não está documentada oficialmente pelo pagseguro, apesar de ter sido lançada em dezembro de 2012. Esta funcionalidade foi criada com base em um post em um [blog](http://sounoob.com.br/requisicao-de-pagamento-do-pagseguro-com-assinatura-associada-usando-php/) e em tentativa e erro. Use por sua conta e risco.**
+
+É possível enviar a requisição de uma pagamento recorrente juntamente com o pedido de compra (e por enquanto não é possível enviar um pedido de assinatura sem enviar adicionar nenhum ítem ao pagamento). Para usá-la, basta adicionar um `pre_approval` a um pagamento:
+    
+    # suponho que uma variavel payment (do tipo PagSeguro::Payment) já foi instanciada, e que o payment.items não está vazio
+    payment.pre_approval = PagSeguro::PreApproval.new
+
+    # obrigatório. Recebe uma string (de até 100 caracteres) e representa o nome da sua assinatura
+    payment.pre_approval.name = "nome da minha assinatura"
+
+    # obrigatório. Recebe uma data e representa a data em que sua assinatura termina. Não pode ser maior do que a data de início (ou hoje) em mais de 744 dias (pouco menos de 3 anos)
+    payment.pre_approval.pre_approval.final_date = Date.new(2014, 6, 12)
+
+    # obrigatório. Valor máximo da assinatura por período/cobrança. Recebe uma string (formatada como "%.2f"), um float ou um BigDecimal
+    payment.pre_approval.max_amount_per_period = '200.00'
+
+    # obrigatório. Valor máximo total da assinatura. Recebe uma string (formatada como "%.2f"), um float ou um BigDecimal
+    payment.pre_approval.max_total_amount = '1000.00'
+
+    # obrigatório. Representa a periodicidade da cobraça. Recebe uma string ou símbolo e pode ser: weekly, monthly, bimonthly, trimonthly, semiannually, ou yearly
+    payment.pre_approval.period = :monthly
+
+    # obrigatório no caso de pagamentos de periodicidade monthly, bimonthly ou trimonthly. Recebe um número (dia do mês) de 1 à 28
+    payment.pre_approval.day_of_month = 10
+
+    # obrigatório no caso de pagamentos de periodicidade weekly. Recebe uma string ou símbolo representando o dia na semana, e pode ser monday, tuesday, wednesday, thursday, friday, saturday ou sunday
+    payment.pre_approval.day_of_week = :friday
+
+    # obrigatório no caso de pagamentos de periodicidade yearly. Recebe uma string representando o dia do mês e o mês do ano no formato 'MM-dd'. Para facilitar use a classe DayOfYear que gera a string no formato correto.
+    payment.pre_approval.day_of_year = PagSeguro::DayOfYear.new(day: 10, month: 4)
+
+    # estranhamente é opcional! Valor de cada cobrança. Recebe uma string (no formato "%.2f"), um float ou um BigDecimal
+    payment.pre_approval.amount_per_payment = '200.00'
+
+    # opcional. Recebe uma string (de até 255 caracteres) e representa os detalhes da assinatura
+    payment.pre_approval.details = "detalhes da assinatura"
+
+    # opcional. Recebe uma data de quando a assinatura passa a valer. Não pode ser maior do que 2 anos da data atual, e precisa ser inferior a data de final_date (que pode ser maior em até 744 dias da data de início)
+    payment.pre_approval.initial_date = Date.new(2014, 3, 12)
+
+    # opcional. Recebe uma string que supostamente deveria levar às condições da sua assinatura
+    payment.pre_approval.reviewURL = "http://seuproduto.com/assinatura"
+
+    # Por fim gere a URL do pagseguro da mesma forma como nas compras/pagamentos normais.
+    redirect_to_url = payment.checkout_payment_url
 
 ## Validações
 
@@ -134,10 +199,6 @@ Esta gem possui testes extensivos utilizando Rspec. Para rodar os testes, altere
 
     bundle
     guard
-
-## Todo
-
-Adicionar código para realizar consultas ao [Histórico de Transações](https://pagseguro.uol.com.br/v2/guia-de-integracao/consulta-de-transacoes-por-intervalo-de-datas.html)
 
 ## Contribuindo
 
@@ -152,3 +213,5 @@ Desenvolvida por [Stefano Diem Benatti](mailto:stefano@heavenstudio.com.br)
 Rafael Castilho (<http://github.com/castilhor>)
 
 Rafael Ivan Garcia (https://github.com/rafaelivan)
+
+efmiglioranza (https://github.com/efmiglioranza)
